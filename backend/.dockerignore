@@ -1,0 +1,8 @@
+backend-venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+db.sqlite3
+.flake8
+.git
+*.log

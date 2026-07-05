@@ -1,0 +1,113 @@
+import { useState, useEffect } from "react";
+import { getCategories, searchBusinesses } from "../api/client";
+import SearchBar from "../components/SearchBar";
+import CategoryChips from "../components/CategoryChips";
+import BusinessCard from "../components/BusinessCard";
+import ThemeToggle from "../components/ThemeToggle";
+import { useGeolocation } from "../hooks/useGeolocation";
+import { useTheme } from "../context/ThemeContext";
+
+export default function SearchResultsPage() {
+  const { theme, toggleTheme } = useTheme();
+  const { location, isUsingDeviceLocation, requestDeviceLocation, error: geoError } = useGeolocation();
+
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [status, setStatus] = useState("loading"); // loading | success | error
+  const [errorMessage, setErrorMessage] = useState(null);
+
+  useEffect(() => {
+    getCategories()
+      .then(setCategories)
+      .catch(() => {
+        /* filter chips just show "All" if categories fail to load */
+      });
+  }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(timeout);
+  }, [query]);
+
+  useEffect(() => {
+    setStatus("loading");
+    searchBusinesses({
+      lat: location.lat,
+      lng: location.lng,
+      category: selectedCategory,
+      q: debouncedQuery || undefined,
+    })
+      .then((data) => {
+        setResults(data.results);
+        setStatus("success");
+      })
+      .catch((err) => {
+        setErrorMessage(err.message);
+        setStatus("error");
+      });
+  }, [location, selectedCategory, debouncedQuery]);
+
+  return (
+    <div style={{ maxWidth: "480px", margin: "0 auto", padding: "20px 16px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+        <h1
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontWeight: 600,
+            fontSize: "22px",
+            color: "var(--color-text-primary)",
+            margin: 0,
+          }}
+        >
+          NearMe
+        </h1>
+        <ThemeToggle theme={theme} onToggle={toggleTheme} />
+      </div>
+
+      <SearchBar
+        value={query}
+        onChange={setQuery}
+        onUseMyLocation={requestDeviceLocation}
+        isUsingDeviceLocation={isUsingDeviceLocation}
+      />
+      {geoError && (
+        <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "-6px" }}>{geoError}</p>
+      )}
+
+      <CategoryChips categories={categories} selectedSlug={selectedCategory} onSelect={setSelectedCategory} />
+
+      {status === "loading" && (
+        <p style={{ color: "var(--color-text-secondary)", fontSize: "14px" }}>Finding businesses nearby…</p>
+      )}
+
+      {status === "error" && (
+        <p style={{ color: "var(--color-danger)", fontSize: "14px" }}>
+          Couldn't load results: {errorMessage}
+        </p>
+      )}
+
+      {status === "success" && results.length === 0 && (
+        <p style={{ color: "var(--color-text-secondary)", fontSize: "14px" }}>
+          No businesses found nearby. Try a wider search or a different category.
+        </p>
+      )}
+
+      {status === "success" && results.length > 0 && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "16px 12px",
+          }}
+        >
+          {results.map((business) => (
+            <BusinessCard key={business.id} business={business} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

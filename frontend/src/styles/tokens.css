@@ -1,0 +1,53 @@
+/* NearMe design tokens — finalized in the Phase 1 design system pass.
+   Light is the default theme; dark is opt-in via [data-theme="dark"]
+   on the root element. Night/Silver swap roles between modes; the red
+   accent and warm tint are the constant brand thread across both. */
+
+:root {
+  --color-bg: #fdfbfa;
+  --color-surface: #ffffff;
+  --color-border: #efe7e1;
+  --color-text-primary: #1e180d;
+  --color-text-secondary: #6b6055;
+  --color-accent: #86141e;
+  --color-accent-secondary: #b52231;
+  --color-warm-tint: #d6a994;
+  --color-success: #2f7d4f;
+  --color-danger: #c13333;
+
+  --font-heading: "Fraunces", serif;
+  --font-body: "Work Sans", sans-serif;
+
+  --radius-card: 12px;
+  --radius-chip: 20px;
+  --radius-photo: 8px;
+}
+
+[data-theme="dark"] {
+  --color-bg: #1e180d;
+  --color-surface: #2d2618;
+  --color-border: #3d3424;
+  --color-text-primary: #f2ece5;
+  --color-text-secondary: #b1b1b1;
+  --color-accent: #86141e;
+  --color-accent-secondary: #b52231;
+  --color-warm-tint: #d6a994;
+  --color-success: #5fbf82;
+  --color-danger: #e3776e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input {
+  font-family: inherit;
+}
