@@ -1,13 +1,18 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { IconList, IconMap2 } from "@tabler/icons-react";
 import { getCategories, searchBusinesses } from "../api/client";
 import SearchBar from "../components/SearchBar";
 import CategoryChips from "../components/CategoryChips";
 import BusinessCard from "../components/BusinessCard";
 import ThemeToggle from "../components/ThemeToggle";
+import ResultsMap from "../components/ResultsMap";
+import Attribution from "../components/Attribution";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useTheme } from "../context/ThemeContext";
 
 export default function SearchResultsPage() {
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { location, isUsingDeviceLocation, requestDeviceLocation, error: geoError } = useGeolocation();
 
@@ -18,6 +23,7 @@ export default function SearchResultsPage() {
   const [results, setResults] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | success | error
   const [errorMessage, setErrorMessage] = useState(null);
+  const [view, setView] = useState("list"); // list | map
 
   useEffect(() => {
     getCategories()
@@ -64,7 +70,31 @@ export default function SearchResultsPage() {
         >
           NearMe
         </h1>
-        <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setView(view === "list" ? "map" : "list")}
+            aria-label={view === "list" ? "Switch to map view" : "Switch to list view"}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "36px",
+              height: "36px",
+              borderRadius: "50%",
+              border: "1px solid var(--color-border)",
+              background: "var(--color-surface)",
+              cursor: "pointer",
+            }}
+          >
+            {view === "list" ? (
+              <IconMap2 size={17} color="var(--color-text-secondary)" aria-hidden="true" />
+            ) : (
+              <IconList size={17} color="var(--color-text-secondary)" aria-hidden="true" />
+            )}
+          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
       </div>
 
       <SearchBar
@@ -95,19 +125,19 @@ export default function SearchResultsPage() {
         </p>
       )}
 
-      {status === "success" && results.length > 0 && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "16px 12px",
-          }}
-        >
+      {status === "success" && results.length > 0 && view === "list" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 12px" }}>
           {results.map((business) => (
             <BusinessCard key={business.id} business={business} />
           ))}
         </div>
       )}
+
+      {status === "success" && results.length > 0 && view === "map" && (
+        <ResultsMap results={results} onSelectBusiness={(id) => navigate(`/business/${id}`)} />
+      )}
+
+      <Attribution />
     </div>
   );
 }

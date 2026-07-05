@@ -4,6 +4,7 @@ import { IconArrowLeft, IconMapPin, IconPhone } from "@tabler/icons-react";
 import { getBusinessDetail } from "../api/client";
 import PhotoPlaceholder from "../components/PhotoPlaceholder";
 import MapPreview from "../components/MapPreview";
+import Attribution from "../components/Attribution";
 import ThemeToggle from "../components/ThemeToggle";
 import { useTheme } from "../context/ThemeContext";
 
@@ -125,6 +126,7 @@ export default function BusinessProfilePage() {
             This listing is sourced from OpenStreetMap and hasn't been claimed by its owner yet.
           </p>
         )}
+        <Attribution />
       </div>
     </div>
   );
