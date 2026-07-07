@@ -132,3 +132,81 @@ class Business(models.Model):
             ):
                 return end_str
         return None
+
+
+class BusinessClaim(models.Model):
+    """
+    A request from a business_owner to take ownership of a listing. Real-world
+    verification (mailed postcards, license lookup) isn't practical here —
+    claims go into this pending queue and are approved manually via the
+    Django admin, per the Phase 2 roadmap decision.
+    """
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    STATUS_CHOICES = [
+        (PENDING, "Pending"),
+        (APPROVED, "Approved"),
+        (REJECTED, "Rejected"),
+    ]
+
+    business = models.ForeignKey(
+        Business, on_delete=models.CASCADE, related_name="claims"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="business_claims",
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["business", "user"],
+                condition=models.Q(status="pending"),
+                name="one_pending_claim_per_user_per_business",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user} \u2192 {self.business} ({self.status})"
+
+    def approve(self):
+        self.status = self.APPROVED
+        self.reviewed_at = timezone.now()
+        self.save()
+        self.business.claimed = True
+        self.business.owner = self.user
+        self.business.save()
+
+    def reject(self):
+        self.status = self.REJECTED
+        self.reviewed_at = timezone.now()
+        self.save()
+
+
+def business_photo_path(instance, filename):
+    return f"business_photos/{instance.business_id}/{filename}"
+
+
+class Media(models.Model):
+    """A photo attached to a business listing. Local disk storage for now —
+    see the MEDIA_ROOT comment in settings.py for the S3 migration note."""
+
+    business = models.ForeignKey(
+        Business, on_delete=models.CASCADE, related_name="photos"
+    )
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    image = models.ImageField(upload_to=business_photo_path)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Photo for {self.business.name}"

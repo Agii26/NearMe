@@ -107,6 +107,9 @@ class BusinessDetailTests(APITestCase):
         self.assertEqual(response.data["contact_phone"], "0917 123 4567")
         self.assertTrue(response.data["is_open_now"])  # open 24/7 in this fixture
         self.assertEqual(response.data["category"]["slug"], "food-dining")
+        # The owner's dashboard edit form depends on the raw hours structure
+        # being present, not just the derived is_open_now/closes_at fields.
+        self.assertEqual(response.data["hours"]["mon"], [["00:00", "24:00"]])
 
     def test_detail_404_for_missing_business(self):
         response = self.client.get("/api/businesses/999999/")

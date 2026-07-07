@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { IconList, IconMap2 } from "@tabler/icons-react";
+import { useNavigate, Link } from "react-router-dom";
+import { IconList, IconMap2, IconUserCircle } from "@tabler/icons-react";
 import { getCategories, searchBusinesses } from "../api/client";
 import SearchBar from "../components/SearchBar";
 import CategoryChips from "../components/CategoryChips";
@@ -10,10 +10,12 @@ import ResultsMap from "../components/ResultsMap";
 import Attribution from "../components/Attribution";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useTheme } from "../context/ThemeContext";
+import { useAuthStore } from "../store/authStore";
 
 export default function SearchResultsPage() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const { location, isUsingDeviceLocation, requestDeviceLocation, error: geoError } = useGeolocation();
 
   const [categories, setCategories] = useState([]);
@@ -94,6 +96,23 @@ export default function SearchResultsPage() {
             )}
           </button>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          <Link
+            to={isAuthenticated ? "/dashboard" : "/login"}
+            aria-label={isAuthenticated ? "Go to dashboard" : "Log in"}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "36px",
+              height: "36px",
+              borderRadius: "50%",
+              border: "1px solid var(--color-border)",
+              background: "var(--color-surface)",
+              color: "var(--color-text-secondary)",
+            }}
+          >
+            <IconUserCircle size={18} aria-hidden="true" />
+          </Link>
         </div>
       </div>
 

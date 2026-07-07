@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { IconArrowLeft, IconMapPin, IconPhone } from "@tabler/icons-react";
 import { getBusinessDetail } from "../api/client";
@@ -6,7 +6,10 @@ import PhotoPlaceholder from "../components/PhotoPlaceholder";
 import MapPreview from "../components/MapPreview";
 import Attribution from "../components/Attribution";
 import ThemeToggle from "../components/ThemeToggle";
+import ClaimButton from "../components/ClaimButton";
 import { useTheme } from "../context/ThemeContext";
+
+const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api").replace(/\/api\/?$/, "");
 
 export default function BusinessProfilePage() {
   const { id } = useParams();
@@ -14,7 +17,7 @@ export default function BusinessProfilePage() {
   const [business, setBusiness] = useState(null);
   const [status, setStatus] = useState("loading");
 
-  useEffect(() => {
+  const loadBusiness = useCallback(() => {
     setStatus("loading");
     getBusinessDetail(id)
       .then((data) => {
@@ -23,6 +26,10 @@ export default function BusinessProfilePage() {
       })
       .catch(() => setStatus("error"));
   }, [id]);
+
+  useEffect(() => {
+    loadBusiness();
+  }, [loadBusiness]);
 
   if (status === "loading") {
     return <p style={{ padding: "20px", color: "var(--color-text-secondary)" }}>Loading…</p>;
@@ -47,6 +54,8 @@ export default function BusinessProfilePage() {
     statusText = "Closed now";
   }
 
+  const photoSlots = [0, 1, 2];
+
   return (
     <div style={{ maxWidth: "480px", margin: "0 auto" }}>
       <div style={{ padding: "16px 16px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -62,9 +71,20 @@ export default function BusinessProfilePage() {
 
       <div style={{ padding: "12px 16px 24px" }}>
         <div style={{ display: "flex", gap: "6px", marginBottom: "14px" }}>
-          <PhotoPlaceholder style={{ width: "31%" }} iconSize={16} />
-          <PhotoPlaceholder style={{ width: "31%" }} iconSize={16} />
-          <PhotoPlaceholder style={{ width: "31%", opacity: 0.6 }} iconSize={16} />
+          {photoSlots.map((index) => {
+            const photo = business.photos?.[index];
+            if (photo) {
+              return (
+                <img
+                  key={photo.id}
+                  src={`${API_ORIGIN}${photo.image}`}
+                  alt={`${business.name} photo ${index + 1}`}
+                  style={{ width: "31%", aspectRatio: "1", objectFit: "cover", borderRadius: "8px" }}
+                />
+              );
+            }
+            return <PhotoPlaceholder key={index} style={{ width: "31%" }} iconSize={16} />;
+          })}
         </div>
 
         <h1
@@ -96,13 +116,16 @@ export default function BusinessProfilePage() {
           </span>
         )}
 
-        <p style={{ fontSize: "13px", fontWeight: 500, color: statusColor, margin: "6px 0 18px" }}>
-          {statusText}
-        </p>
+        <p style={{ fontSize: "13px", fontWeight: 500, color: statusColor, margin: "6px 0 18px" }}>{statusText}</p>
 
         {business.address && (
           <div style={{ display: "flex", gap: "8px", alignItems: "flex-start", marginBottom: "12px" }}>
-            <IconMapPin size={17} color="var(--color-text-secondary)" style={{ marginTop: "2px", flexShrink: 0 }} aria-hidden="true" />
+            <IconMapPin
+              size={17}
+              color="var(--color-text-secondary)"
+              style={{ marginTop: "2px", flexShrink: 0 }}
+              aria-hidden="true"
+            />
             <p style={{ fontSize: "14px", color: "var(--color-text-primary)", margin: 0 }}>{business.address}</p>
           </div>
         )}
@@ -122,9 +145,12 @@ export default function BusinessProfilePage() {
         <MapPreview latitude={business.latitude} longitude={business.longitude} businessName={business.name} />
 
         {!business.claimed && (
-          <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "16px" }}>
-            This listing is sourced from OpenStreetMap and hasn't been claimed by its owner yet.
-          </p>
+          <>
+            <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "16px" }}>
+              This listing is sourced from OpenStreetMap and hasn't been claimed by its owner yet.
+            </p>
+            <ClaimButton businessId={business.id} />
+          </>
         )}
         <Attribution />
       </div>

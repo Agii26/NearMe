@@ -97,8 +97,20 @@ cd frontend && npm test
 | `GET /api/health/` | Health check |
 | `GET /api/categories/` | List all business categories |
 | `GET /api/businesses/search?lat=&lng=&radius=&category=&q=` | Geospatial search, nearest-first. `lat`/`lng` required; `radius` in km (default 5, capped at 50); `category` is a category slug; `q` does a case-insensitive name search |
-| `GET /api/businesses/<id>/` | Full read-only business profile |
+| `GET /api/businesses/<id>/` | Full business profile, including `hours`, `is_open_now`/`closes_at`, and `photos` |
+| `PATCH /api/businesses/<id>/` | Dashboard edits — claiming owner only |
+| `POST /api/businesses/<id>/claim/` | Submit a claim on an unclaimed listing — authenticated users only |
+| `POST /api/businesses/<id>/photos/` | Upload a photo (multipart) — claiming owner only |
+| `GET /api/businesses/mine/` | Businesses the authenticated user owns |
+| `GET /api/businesses/claims/mine/` | The authenticated user's claim history and status |
+| `POST /api/auth/register/` | Create an account with a role (`consumer` or `business_owner`) |
+| `POST /api/auth/login/` | Returns a JWT access + refresh token pair |
+| `POST /api/auth/refresh/` | Exchange a refresh token for a new access token |
+| `POST /api/auth/logout/` | Blacklists the given refresh token |
+| `GET /api/auth/me/` | The authenticated user's account and role |
 
-## What's out of scope in Phase 1
+Claims don't have a real-world verification step (no license lookup, no mailed postcard) — they land in a pending queue and are approved or rejected by hand via the Django admin (`/admin/`, `BusinessClaim` model, bulk actions).
 
-By design, not a gap: authentication, business claiming, reviews/ratings, the social feed, and payments. Every business listing is unclaimed and read-only — see the roadmap for when each of those lands.
+## What's out of scope in Phase 1 and 2
+
+By design, not a gap: reviews/ratings, the social feed, and payments. Business claiming now works — see the API table above — but there's still no public review system and no way for a business to post updates yet.

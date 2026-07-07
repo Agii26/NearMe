@@ -17,3 +17,4 @@ frontend/coverage/
 # General
 .DS_Store
 *.log
+backend/media/
