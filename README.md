@@ -97,20 +97,24 @@ cd frontend && npm test
 | `GET /api/health/` | Health check |
 | `GET /api/categories/` | List all business categories |
 | `GET /api/businesses/search?lat=&lng=&radius=&category=&q=` | Geospatial search, nearest-first. `lat`/`lng` required; `radius` in km (default 5, capped at 50); `category` is a category slug; `q` does a case-insensitive name search |
-| `GET /api/businesses/<id>/` | Full business profile, including `hours`, `is_open_now`/`closes_at`, and `photos` |
+| `GET /api/businesses/<id>/` | Full business profile, including `hours`, `is_open_now`/`closes_at`, `photos`, `average_rating`/`review_count`, and `is_owner` (request-aware) |
 | `PATCH /api/businesses/<id>/` | Dashboard edits — claiming owner only |
 | `POST /api/businesses/<id>/claim/` | Submit a claim on an unclaimed listing — authenticated users only |
 | `POST /api/businesses/<id>/photos/` | Upload a photo (multipart) — claiming owner only |
 | `GET /api/businesses/mine/` | Businesses the authenticated user owns |
 | `GET /api/businesses/claims/mine/` | The authenticated user's claim history and status |
+| `GET /api/businesses/<id>/reviews/` | List visible reviews for a business |
+| `POST /api/businesses/<id>/reviews/` | Post a review — authenticated, one per user per business, can't review a business you own |
+| `DELETE /api/reviews/<id>/` | A reviewer can delete their own review |
+| `POST /api/reviews/<id>/flag/` | Report a review for moderation — one flag per user per review, doesn't hide the review by itself |
 | `POST /api/auth/register/` | Create an account with a role (`consumer` or `business_owner`) |
 | `POST /api/auth/login/` | Returns a JWT access + refresh token pair |
 | `POST /api/auth/refresh/` | Exchange a refresh token for a new access token |
 | `POST /api/auth/logout/` | Blacklists the given refresh token |
 | `GET /api/auth/me/` | The authenticated user's account and role |
 
-Claims don't have a real-world verification step (no license lookup, no mailed postcard) — they land in a pending queue and are approved or rejected by hand via the Django admin (`/admin/`, `BusinessClaim` model, bulk actions).
+Claims don't have a real-world verification step (no license lookup, no mailed postcard) — they land in a pending queue and are approved or rejected by hand via the Django admin (`/admin/`, `BusinessClaim` model, bulk actions). Reviews are visible immediately on posting; a single flag doesn't hide a review, it surfaces it in the admin's moderation queue (`Review` model, "has flags" filter) for a human decision.
 
-## What's out of scope in Phase 1 and 2
+## What's out of scope through Phase 3
 
-By design, not a gap: reviews/ratings, the social feed, and payments. Business claiming now works — see the API table above — but there's still no public review system and no way for a business to post updates yet.
+By design, not a gap: the social feed (business posts, follows) and payments. Search, claiming, and reviews all work end to end — see the API table above.

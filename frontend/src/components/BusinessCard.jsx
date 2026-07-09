@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import PhotoPlaceholder from "./PhotoPlaceholder";
+import StarRating from "./StarRating";
 
 export default function BusinessCard({ business }) {
   const statusColor = business.is_open_now ? "var(--color-success)" : "var(--color-danger)";
@@ -25,6 +26,11 @@ export default function BusinessCard({ business }) {
       >
         {business.name}
       </p>
+      {business.review_count > 0 && (
+        <div style={{ marginBottom: "2px" }}>
+          <StarRating value={business.average_rating} count={business.review_count} size={11} />
+        </div>
+      )}
       <p style={{ fontFamily: "var(--font-body)", fontSize: "12px", color: "var(--color-text-secondary)", margin: 0 }}>
         {business.category?.name}
         {business.distance_km != null && ` · ${business.distance_km}km`}

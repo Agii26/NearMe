@@ -1,8 +1,11 @@
+from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import Point
 from rest_framework.test import APITestCase
 
 from categories.models import Category
 from businesses.models import Business
+
+User = get_user_model()
 
 ORIGIN_LAT, ORIGIN_LNG = 14.650, 121.050
 
@@ -114,3 +117,47 @@ class BusinessDetailTests(APITestCase):
     def test_detail_404_for_missing_business(self):
         response = self.client.get("/api/businesses/999999/")
         self.assertEqual(response.status_code, 404)
+
+
+class IsOwnerFieldTests(APITestCase):
+    def setUp(self):
+        self.food = Category.objects.get(slug="food-dining")
+        self.owner = User.objects.create_user(
+            username="owner-check", password="a-strong-password-123"
+        )
+        self.business = Business.objects.create(
+            name="Better Days Café",
+            category=self.food,
+            location=Point(ORIGIN_LNG, ORIGIN_LAT),
+            claimed=True,
+            owner=self.owner,
+        )
+
+    def test_is_owner_false_for_anonymous_user(self):
+        response = self.client.get(f"/api/businesses/{self.business.id}/")
+        self.assertFalse(response.data["is_owner"])
+
+    def test_is_owner_true_for_the_actual_owner(self):
+        login = self.client.post(
+            "/api/auth/login/",
+            {"username": "owner-check", "password": "a-strong-password-123"},
+        )
+        response = self.client.get(
+            f"/api/businesses/{self.business.id}/",
+            HTTP_AUTHORIZATION=f"Bearer {login.data['access']}",
+        )
+        self.assertTrue(response.data["is_owner"])
+
+    def test_is_owner_false_for_a_different_authenticated_user(self):
+        User.objects.create_user(
+            username="someone-else", password="a-strong-password-123"
+        )
+        login = self.client.post(
+            "/api/auth/login/",
+            {"username": "someone-else", "password": "a-strong-password-123"},
+        )
+        response = self.client.get(
+            f"/api/businesses/{self.business.id}/",
+            HTTP_AUTHORIZATION=f"Bearer {login.data['access']}",
+        )
+        self.assertFalse(response.data["is_owner"])

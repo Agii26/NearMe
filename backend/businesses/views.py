@@ -1,6 +1,7 @@
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
+from django.db.models import Avg, Count, Q
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import MultiPartParser
@@ -62,6 +63,14 @@ class BusinessSearchView(generics.ListAPIView):
                 location__distance_lte=(user_location, D(km=radius_km))
             )
             .annotate(distance=Distance("location", user_location))
+            .annotate(
+                average_rating=Avg(
+                    "reviews__rating", filter=Q(reviews__is_removed=False)
+                ),
+                review_count=Count(
+                    "reviews", filter=Q(reviews__is_removed=False), distinct=True
+                ),
+            )
             .select_related("category")
             .order_by("distance")
         )

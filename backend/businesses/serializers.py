@@ -1,3 +1,4 @@
+from django.db.models import Avg
 from rest_framework import serializers
 
 from categories.serializers import CategorySerializer
@@ -13,6 +14,8 @@ class BusinessListSerializer(serializers.ModelSerializer):
     longitude = serializers.FloatField(source="location.x", read_only=True)
     distance_km = serializers.SerializerMethodField()
     is_open_now = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Business
@@ -25,6 +28,8 @@ class BusinessListSerializer(serializers.ModelSerializer):
             "address",
             "distance_km",
             "is_open_now",
+            "average_rating",
+            "review_count",
         ]
 
     def get_distance_km(self, obj):
@@ -35,6 +40,13 @@ class BusinessListSerializer(serializers.ModelSerializer):
 
     def get_is_open_now(self, obj):
         return obj.is_open_now()
+
+    def get_average_rating(self, obj):
+        avg = getattr(obj, "average_rating", None)
+        return round(avg, 1) if avg is not None else None
+
+    def get_review_count(self, obj):
+        return getattr(obj, "review_count", 0)
 
 
 class MediaSerializer(serializers.ModelSerializer):
@@ -52,6 +64,9 @@ class BusinessDetailSerializer(serializers.ModelSerializer):
     is_open_now = serializers.SerializerMethodField()
     closes_at = serializers.SerializerMethodField()
     photos = MediaSerializer(many=True, read_only=True)
+    average_rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
+    is_owner = serializers.SerializerMethodField()
 
     class Meta:
         model = Business
@@ -69,13 +84,32 @@ class BusinessDetailSerializer(serializers.ModelSerializer):
             "closes_at",
             "claimed",
             "photos",
+            "average_rating",
+            "review_count",
+            "is_owner",
         ]
+
+    def get_is_owner(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        return obj.owner_id == request.user.id
 
     def get_is_open_now(self, obj):
         return obj.is_open_now()
 
     def get_closes_at(self, obj):
         return obj.next_close_time()
+
+    def _visible_reviews(self, obj):
+        return obj.reviews.filter(is_removed=False)
+
+    def get_average_rating(self, obj):
+        avg = self._visible_reviews(obj).aggregate(avg=Avg("rating"))["avg"]
+        return round(avg, 1) if avg is not None else None
+
+    def get_review_count(self, obj):
+        return self._visible_reviews(obj).count()
 
 
 class BusinessUpdateSerializer(serializers.ModelSerializer):

@@ -31,8 +31,8 @@ export function searchBusinesses({ lat, lng, radius, category, q }) {
   return request(`/businesses/search?${params.toString()}`);
 }
 
-export function getBusinessDetail(id) {
-  return request(`/businesses/${id}/`);
+export function getBusinessDetail(id, accessToken) {
+  return request(`/businesses/${id}/`, { accessToken });
 }
 
 export function claimBusiness(id, accessToken) {
@@ -49,6 +49,26 @@ export function getMyBusinesses(accessToken) {
 
 export function getMyClaims(accessToken) {
   return request("/businesses/claims/mine/", { accessToken });
+}
+
+export function getReviews(businessId) {
+  return request(`/businesses/${businessId}/reviews/`);
+}
+
+export function createReview(businessId, { rating, text }, accessToken) {
+  return request(`/businesses/${businessId}/reviews/`, {
+    method: "POST",
+    body: { rating, text },
+    accessToken,
+  });
+}
+
+export function deleteReview(reviewId, accessToken) {
+  return request(`/reviews/${reviewId}/`, { method: "DELETE", accessToken });
+}
+
+export function flagReview(reviewId, reason, accessToken) {
+  return request(`/reviews/${reviewId}/flag/`, { method: "POST", body: { reason }, accessToken });
 }
 
 export async function uploadBusinessPhoto(id, file, accessToken) {

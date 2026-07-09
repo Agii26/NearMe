@@ -1,35 +1,51 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { IconArrowLeft, IconMapPin, IconPhone } from "@tabler/icons-react";
-import { getBusinessDetail } from "../api/client";
+import { getBusinessDetail, getReviews } from "../api/client";
 import PhotoPlaceholder from "../components/PhotoPlaceholder";
 import MapPreview from "../components/MapPreview";
 import Attribution from "../components/Attribution";
 import ThemeToggle from "../components/ThemeToggle";
 import ClaimButton from "../components/ClaimButton";
+import StarRating from "../components/StarRating";
+import ReviewForm from "../components/ReviewForm";
+import ReviewList from "../components/ReviewList";
 import { useTheme } from "../context/ThemeContext";
+import { useAuthStore } from "../store/authStore";
 
 const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api").replace(/\/api\/?$/, "");
 
 export default function BusinessProfilePage() {
   const { id } = useParams();
   const { theme, toggleTheme } = useTheme();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const currentUsername = useAuthStore((state) => state.user?.username);
+
   const [business, setBusiness] = useState(null);
   const [status, setStatus] = useState("loading");
+  const [reviews, setReviews] = useState([]);
 
   const loadBusiness = useCallback(() => {
     setStatus("loading");
-    getBusinessDetail(id)
+    getBusinessDetail(id, accessToken)
       .then((data) => {
         setBusiness(data);
         setStatus("success");
       })
       .catch(() => setStatus("error"));
-  }, [id]);
+  }, [id, accessToken]);
 
   useEffect(() => {
     loadBusiness();
   }, [loadBusiness]);
+
+  useEffect(() => {
+    getReviews(id)
+      .then((data) => setReviews(data.results || data))
+      .catch(() => {
+        /* reviews section just shows empty if this fails — not fatal to the page */
+      });
+  }, [id]);
 
   if (status === "loading") {
     return <p style={{ padding: "20px", color: "var(--color-text-secondary)" }}>Loading…</p>;
@@ -55,6 +71,18 @@ export default function BusinessProfilePage() {
   }
 
   const photoSlots = [0, 1, 2];
+  const hasAlreadyReviewed = reviews.some((review) => review.username === currentUsername);
+  const canReview = accessToken && !business.is_owner && !hasAlreadyReviewed;
+
+  // Derived from the live reviews list rather than the business snapshot's
+  // average_rating/review_count — those only reflect what was true at the
+  // moment the page first loaded, so they'd otherwise go stale the instant
+  // a review is added or removed in this same session.
+  const liveReviewCount = reviews.length;
+  const liveAverageRating =
+    liveReviewCount > 0
+      ? reviews.reduce((sum, review) => sum + review.rating, 0) / liveReviewCount
+      : null;
 
   return (
     <div style={{ maxWidth: "480px", margin: "0 auto" }}>
@@ -93,11 +121,17 @@ export default function BusinessProfilePage() {
             fontWeight: 600,
             fontSize: "22px",
             color: "var(--color-text-primary)",
-            margin: "0 0 8px",
+            margin: "0 0 6px",
           }}
         >
           {business.name}
         </h1>
+
+        {liveReviewCount > 0 && (
+          <div style={{ marginBottom: "10px" }}>
+            <StarRating value={liveAverageRating} count={liveReviewCount} size={15} />
+          </div>
+        )}
 
         {business.category && (
           <span
@@ -152,6 +186,28 @@ export default function BusinessProfilePage() {
             <ClaimButton businessId={business.id} />
           </>
         )}
+
+        <h2
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontWeight: 600,
+            fontSize: "16px",
+            color: "var(--color-text-primary)",
+            margin: "24px 0 0",
+          }}
+        >
+          Reviews
+        </h2>
+
+        {canReview && (
+          <ReviewForm businessId={business.id} onSubmitted={(review) => setReviews([review, ...reviews])} />
+        )}
+
+        <ReviewList
+          reviews={reviews}
+          onRemoved={(reviewId) => setReviews(reviews.filter((r) => r.id !== reviewId))}
+        />
+
         <Attribution />
       </div>
     </div>
