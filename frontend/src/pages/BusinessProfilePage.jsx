@@ -24,6 +24,7 @@ export default function BusinessProfilePage() {
   const [business, setBusiness] = useState(null);
   const [status, setStatus] = useState("loading");
   const [reviews, setReviews] = useState([]);
+  const [reviewNotice, setReviewNotice] = useState(null);
 
   const loadBusiness = useCallback(() => {
     setStatus("loading");
@@ -203,9 +204,20 @@ export default function BusinessProfilePage() {
           <ReviewForm businessId={business.id} onSubmitted={(review) => setReviews([review, ...reviews])} />
         )}
 
+        {reviewNotice && (
+          <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", margin: "10px 0 0" }}>
+            {reviewNotice}
+          </p>
+        )}
+
         <ReviewList
           reviews={reviews}
-          onRemoved={(reviewId) => setReviews(reviews.filter((r) => r.id !== reviewId))}
+          onRemoved={(reviewId, meta) => {
+            setReviews(reviews.filter((r) => r.id !== reviewId));
+            setReviewNotice(
+              meta?.reason === "flagged" ? "Review reported — now hidden pending moderation." : null
+            );
+          }}
         />
 
         <Attribution />

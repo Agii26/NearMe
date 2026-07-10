@@ -51,7 +51,15 @@ class AggregateRatingTests(APITestCase):
 
     def test_removed_reviews_excluded_from_average(self):
         # Remove the 2-star review — new average of [5,4,3] = 4.0, count 3
-        Review.objects.filter(rating=2).update(is_removed=True)
+        Review.objects.filter(rating=2).update(status=Review.REMOVED)
+
+        response = self.client.get(f"/api/businesses/{self.business.id}/")
+        self.assertEqual(response.data["review_count"], 3)
+        self.assertEqual(response.data["average_rating"], 4.0)
+
+    def test_hidden_pending_review_excluded_from_average(self):
+        # Flagging a review pulls it from the aggregate too, not just the list
+        Review.objects.filter(rating=2).update(status=Review.HIDDEN_PENDING_REVIEW)
 
         response = self.client.get(f"/api/businesses/{self.business.id}/")
         self.assertEqual(response.data["review_count"], 3)

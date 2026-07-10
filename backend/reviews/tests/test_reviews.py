@@ -47,6 +47,14 @@ class ReviewCreationTests(APITestCase):
             Review.objects.filter(business=self.business, user=self.consumer).count(), 1
         )
 
+    def test_new_review_defaults_to_visible(self):
+        headers = _auth_header(self.client, "maria")
+        self.client.post(
+            f"/api/businesses/{self.business.id}/reviews/", {"rating": 5}, **headers
+        )
+        review = Review.objects.get(business=self.business, user=self.consumer)
+        self.assertEqual(review.status, Review.VISIBLE)
+
     def test_rejects_rating_outside_1_to_5(self):
         headers = _auth_header(self.client, "maria")
         response = self.client.post(
@@ -82,14 +90,51 @@ class ReviewCreationTests(APITestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_removed_reviews_do_not_appear_in_public_list(self):
-        review = Review.objects.create(
-            business=self.business, user=self.consumer, rating=1, text="bad"
+        Review.objects.create(
+            business=self.business,
+            user=self.consumer,
+            rating=1,
+            text="bad",
+            status=Review.REMOVED,
         )
-        review.is_removed = True
-        review.save()
-
         response = self.client.get(f"/api/businesses/{self.business.id}/reviews/")
         self.assertEqual(len(response.data["results"]), 0)
+
+    def test_hidden_pending_review_reviews_do_not_appear_in_public_list(self):
+        Review.objects.create(
+            business=self.business,
+            user=self.consumer,
+            rating=1,
+            status=Review.HIDDEN_PENDING_REVIEW,
+        )
+        response = self.client.get(f"/api/businesses/{self.business.id}/reviews/")
+        self.assertEqual(len(response.data["results"]), 0)
+
+    def test_reviewer_can_edit_their_own_review(self):
+        review = Review.objects.create(
+            business=self.business, user=self.consumer, rating=2, text="meh"
+        )
+        headers = _auth_header(self.client, "maria")
+        response = self.client.patch(
+            f"/api/reviews/{review.id}/",
+            {"rating": 5, "text": "actually great"},
+            **headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        review.refresh_from_db()
+        self.assertEqual(review.rating, 5)
+        self.assertEqual(review.text, "actually great")
+
+    def test_user_cannot_edit_someone_elses_review(self):
+        other = User.objects.create_user(
+            username="juan", password="a-strong-password-123"
+        )
+        review = Review.objects.create(business=self.business, user=other, rating=3)
+        headers = _auth_header(self.client, "maria")
+        response = self.client.patch(
+            f"/api/reviews/{review.id}/", {"rating": 1}, **headers
+        )
+        self.assertEqual(response.status_code, 403)
 
     def test_reviewer_can_delete_their_own_review(self):
         review = Review.objects.create(
@@ -112,6 +157,14 @@ class ReviewCreationTests(APITestCase):
 
 
 class ReviewFlagTests(APITestCase):
+    """
+    Per the Phase 3 roadmap spec: 'flagged reviews enter a moderation queue,
+    hidden from public view until reviewed' — a single flag DOES hide the
+    review immediately. This is a deliberate spec choice (not the more
+    abuse-resistant 'needs multiple flags' alternative); see Review's
+    docstring for the trade-off note.
+    """
+
     def setUp(self):
         self.category = Category.objects.get(slug="food-dining")
         self.business = Business.objects.create(
@@ -143,19 +196,35 @@ class ReviewFlagTests(APITestCase):
         second = self.client.post(f"/api/reviews/{self.review.id}/flag/", {}, **headers)
         self.assertEqual(second.status_code, 400)
 
-    def test_a_single_flag_does_not_hide_the_review(self):
-        """A lone flag must not be enough to suppress a review — that would
-        make it trivial to silence reviews someone simply dislikes."""
+    def test_flagging_immediately_hides_the_review_from_public_view(self):
         headers = _auth_header(self.client, "reporter")
         self.client.post(f"/api/reviews/{self.review.id}/flag/", {}, **headers)
+
+        self.review.refresh_from_db()
+        self.assertEqual(self.review.status, Review.HIDDEN_PENDING_REVIEW)
+
+        response = self.client.get(f"/api/businesses/{self.business.id}/reviews/")
+        self.assertEqual(len(response.data["results"]), 0)
+
+    def test_unflagged_reviews_remain_visible(self):
+        response = self.client.get(f"/api/businesses/{self.business.id}/reviews/")
+        self.assertEqual(len(response.data["results"]), 1)
+
+    def test_admin_restore_makes_a_flagged_review_visible_again(self):
+        ReviewFlag.objects.create(review=self.review, flagged_by=self.reporter)
+        self.review.refresh_from_db()
+        self.assertEqual(self.review.status, Review.HIDDEN_PENDING_REVIEW)
+
+        self.review.restore()
 
         response = self.client.get(f"/api/businesses/{self.business.id}/reviews/")
         self.assertEqual(len(response.data["results"]), 1)
 
-    def test_admin_removing_a_flagged_review_hides_it(self):
+    def test_admin_remove_keeps_a_flagged_review_hidden_permanently(self):
         ReviewFlag.objects.create(review=self.review, flagged_by=self.reporter)
-        self.review.is_removed = True
-        self.review.save()
+        self.review.remove()
 
+        self.review.refresh_from_db()
+        self.assertEqual(self.review.status, Review.REMOVED)
         response = self.client.get(f"/api/businesses/{self.business.id}/reviews/")
         self.assertEqual(len(response.data["results"]), 0)

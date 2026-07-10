@@ -7,23 +7,26 @@ import StarRating from "./StarRating";
 function ReviewItem({ review, onRemoved }) {
   const accessToken = useAuthStore((state) => state.accessToken);
   const currentUsername = useAuthStore((state) => state.user?.username);
-  const [flagState, setFlagState] = useState("idle"); // idle | flagging | flagged
+  const [flagState, setFlagState] = useState("idle"); // idle | flagging | error
   const isOwnReview = currentUsername === review.username;
 
+  // A flag hides the review from public view immediately (see the backend's
+  // Phase 3 spec) — so on success this removes it from the list the same
+  // way a delete does, rather than leaving it visible with a flag icon lit.
   async function handleFlag() {
     setFlagState("flagging");
     try {
       await flagReview(review.id, "", accessToken);
-      setFlagState("flagged");
+      onRemoved?.(review.id, { reason: "flagged" });
     } catch {
-      setFlagState("idle");
+      setFlagState("error");
     }
   }
 
   async function handleDelete() {
     try {
       await deleteReview(review.id, accessToken);
-      onRemoved?.(review.id);
+      onRemoved?.(review.id, { reason: "deleted" });
     } catch {
       /* leave the review in place if deletion fails */
     }
@@ -51,17 +54,22 @@ function ReviewItem({ review, onRemoved }) {
           <button
             type="button"
             onClick={handleFlag}
-            disabled={flagState !== "idle"}
+            disabled={flagState === "flagging"}
             aria-label="Report this review"
             style={{ background: "none", border: "none", color: "var(--color-text-secondary)", cursor: "pointer" }}
           >
-            <IconFlag size={15} aria-hidden="true" fill={flagState === "flagged" ? "currentColor" : "none"} />
+            <IconFlag size={15} aria-hidden="true" />
           </button>
         )}
       </div>
       {review.text && (
         <p style={{ fontSize: "13px", color: "var(--color-text-primary)", margin: "8px 0 0", lineHeight: 1.5 }}>
           {review.text}
+        </p>
+      )}
+      {flagState === "error" && (
+        <p style={{ fontSize: "11px", color: "var(--color-danger)", margin: "6px 0 0" }}>
+          Couldn't report this review — try again.
         </p>
       )}
     </div>

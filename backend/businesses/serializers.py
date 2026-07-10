@@ -102,7 +102,7 @@ class BusinessDetailSerializer(serializers.ModelSerializer):
         return obj.next_close_time()
 
     def _visible_reviews(self, obj):
-        return obj.reviews.filter(is_removed=False)
+        return obj.reviews.filter(status="visible")
 
     def get_average_rating(self, obj):
         avg = self._visible_reviews(obj).aggregate(avg=Avg("rating"))["avg"]

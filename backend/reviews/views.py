@@ -34,7 +34,7 @@ class ReviewListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         return Review.objects.filter(
-            business=self.get_business(), is_removed=False
+            business=self.get_business(), status=Review.VISIBLE
         ).select_related("user")
 
     def perform_create(self, serializer):
@@ -49,23 +49,29 @@ class ReviewListCreateView(generics.ListCreateAPIView):
         serializer.save(business=business, user=self.request.user)
 
 
-class ReviewDeleteView(generics.DestroyAPIView):
-    """DELETE /api/reviews/<id>/ — a reviewer can remove their own review."""
+class ReviewUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET/PATCH/PUT/DELETE /api/reviews/<id>/ — a reviewer can edit or remove
+    their own review (rating/text only — editing doesn't restore a review
+    that's hidden pending moderation).
+    """
 
     queryset = Review.objects.all()
+    serializer_class = ReviewCreateSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
         review = super().get_object()
         if review.user_id != self.request.user.id:
             self.permission_denied(
-                self.request, message="You can only delete your own review."
+                self.request, message="You can only edit or delete your own review."
             )
         return review
 
 
 class ReviewFlagView(APIView):
-    """POST /api/reviews/<id>/flag/ — report a review for moderation."""
+    """POST /api/reviews/<id>/flag/ — report a review for moderation.
+    Immediately pulls it from public view pending a human decision."""
 
     permission_classes = [permissions.IsAuthenticated]
 

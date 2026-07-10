@@ -65,10 +65,10 @@ class BusinessSearchView(generics.ListAPIView):
             .annotate(distance=Distance("location", user_location))
             .annotate(
                 average_rating=Avg(
-                    "reviews__rating", filter=Q(reviews__is_removed=False)
+                    "reviews__rating", filter=Q(reviews__status="visible")
                 ),
                 review_count=Count(
-                    "reviews", filter=Q(reviews__is_removed=False), distinct=True
+                    "reviews", filter=Q(reviews__status="visible"), distinct=True
                 ),
             )
             .select_related("category")

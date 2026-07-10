@@ -106,14 +106,14 @@ cd frontend && npm test
 | `GET /api/businesses/<id>/reviews/` | List visible reviews for a business |
 | `POST /api/businesses/<id>/reviews/` | Post a review — authenticated, one per user per business, can't review a business you own |
 | `DELETE /api/reviews/<id>/` | A reviewer can delete their own review |
-| `POST /api/reviews/<id>/flag/` | Report a review for moderation — one flag per user per review, doesn't hide the review by itself |
+| `POST /api/reviews/<id>/flag/` | Report a review — one flag per user per review, immediately hides it from public view pending moderation |
 | `POST /api/auth/register/` | Create an account with a role (`consumer` or `business_owner`) |
 | `POST /api/auth/login/` | Returns a JWT access + refresh token pair |
 | `POST /api/auth/refresh/` | Exchange a refresh token for a new access token |
 | `POST /api/auth/logout/` | Blacklists the given refresh token |
 | `GET /api/auth/me/` | The authenticated user's account and role |
 
-Claims don't have a real-world verification step (no license lookup, no mailed postcard) — they land in a pending queue and are approved or rejected by hand via the Django admin (`/admin/`, `BusinessClaim` model, bulk actions). Reviews are visible immediately on posting; a single flag doesn't hide a review, it surfaces it in the admin's moderation queue (`Review` model, "has flags" filter) for a human decision.
+Claims don't have a real-world verification step (no license lookup, no mailed postcard) — they land in a pending queue and are approved or rejected by hand via the Django admin (`/admin/`, `BusinessClaim` model, bulk actions). Reviews are visible immediately on posting, but flagging one pulls it from public view immediately, pending a human decision in the Django admin (`Review` model, filter by status) to restore or permanently remove it.
 
 ## What's out of scope through Phase 3
 
